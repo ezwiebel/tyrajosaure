@@ -1,5 +1,8 @@
 :root {
-  --paper: #fbf6ec;
+  --night: #11140f;
+  --night-fg: #d6dccf;
+  --night-dim: #8a9384;
+  --dino: #8fd16a;
   --card: #fffdf8;
   --ink: #2a2723;
   --muted: #736c62;
@@ -9,9 +12,9 @@
   --red: #c8402f;
   --red-soft: #fbe5e1;
   --amber: #b97a06;
-  --sans: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, sans-serif;
   --mono: ui-monospace, "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-  color-scheme: light;
+  --sans: var(--mono);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -19,9 +22,9 @@
 
 body {
   margin: 0;
-  font: 16px/1.5 var(--sans);
-  color: var(--ink);
-  background: var(--paper);
+  font: 15px/1.55 var(--mono);
+  color: var(--night-fg);
+  background: var(--night);
   padding: 0 16px 48px;
 }
 
@@ -31,14 +34,15 @@ pre { margin: 0; font-family: var(--mono); }
 /* ---------- En-tête ---------- */
 .hero { padding-top: 28px; }
 .dino {
-  color: var(--green);
+  color: var(--dino);
   font-size: min(14px, 3.4vw);
   line-height: 1.2;
 }
-.dino .pom { color: var(--muted); }
+.dino .pom { color: #fff; }
 .dino .hat { color: var(--red); }
-.dino .eye { color: var(--amber); font-weight: 700; }
-.dino .teeth { color: var(--ink); }
+.dino .eye { color: #f2c14e; font-weight: 700; }
+.dino .teeth { color: #fff; }
+.dino .hat { color: #e5534b; }
 
 .title {
   margin-top: 18px;
@@ -50,13 +54,13 @@ pre { margin: 0; font-family: var(--mono); }
   font: 700 1.3rem/1.2 var(--mono);
   letter-spacing: .5px;
 }
-.pun del { color: var(--muted); text-decoration-thickness: 2px; }
-.pun ins { color: var(--red); text-decoration: none; position: relative; }
+.pun del { color: var(--night-dim); text-decoration-thickness: 2px; }
+.pun ins { color: #e5534b; text-decoration: none; position: relative; }
 .pun ins::before {
   content: "^"; position: absolute; left: 50%; top: 1.05em;
   transform: translateX(-50%); font-size: .8em;
 }
-.tagline { margin: 16px 0 0; color: var(--muted); }
+.tagline { margin: 16px 0 0; color: var(--night-dim); }
 
 @media (min-width: 760px) {
   .hero { display: flex; align-items: flex-end; gap: 36px; }
@@ -68,11 +72,12 @@ pre { margin: 0; font-family: var(--mono); }
   margin-top: 22px;
   padding: 20px;
   background: var(--card);
+  color: var(--ink);
   border: 2px solid var(--ink);
   border-radius: 12px;
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: 5px 5px 0 var(--dino);
 }
-.card h2 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+.card h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
 .step {
   font: 700 .9rem/1 var(--mono);
   width: 1.8em; height: 1.8em; flex: none;
@@ -108,7 +113,7 @@ pre { margin: 0; font-family: var(--mono); }
 .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: 2px 2px 0 var(--ink); }
 .btn.big { margin-top: 14px; font-size: 1.15rem; padding: 12px 22px; background: var(--red); box-shadow: 3px 3px 0 var(--ink); }
 .btn.small { font-size: .9rem; padding: 5px 11px; }
-.btn.ghost { background: transparent; color: var(--muted); border-color: var(--muted); box-shadow: none; }
+.btn.ghost { background: transparent; color: var(--night-dim); border-color: var(--night-dim); box-shadow: none; }
 
 /* ---------- Listes ---------- */
 .list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
