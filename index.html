@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>tyrajosaure</title>
+  <title>Tyrajosaure</title>
   <meta name="description" content="Tirage au sort des cadeaux de Noël : qui offre à quel enfant ?">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2311140f'/><text x='12' y='72' font-family='monospace' font-size='64' fill='%238fd16a'>&gt;_</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦖</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="term">
+<div class="page">
 
   <header class="hero">
 <pre class="dino" aria-hidden="true">           <span class="pom">(*)</span>
@@ -28,76 +28,75 @@
           | |    | |
          _| |_  _| |_
         (__|__)(__|__)</pre>
+    <div class="hero-text">
 <pre class="title" aria-label="Tyrajosaure"> _____               _
 |_   _|  _ _ _ __ _ (_)___ ___ __ _ _  _ _ _ ___
   | || || | '_/ _` || / _ (_-&lt;/ _` | || | '_/ -_)
   |_| \_, |_| \__,_|/ \___/__/\__,_|\_,_|_| \___|
       |__/        |__/                           </pre>
-    <p class="sed"><span class="ps1">$</span> echo tyrannosaure | sed 's/nno/jo/'<br>tyrajosaure<span class="cursor">█</span></p>
-    <p class="dim"># le tirage au sort des cadeaux de noël qui a du mordant</p>
+      <p class="pun">tyra<del>nno</del><ins>jo</ins>saure</p>
+      <p class="tagline">Le tirage au sort des cadeaux de Noël qui a du mordant&nbsp;!</p>
+    </div>
   </header>
 
   <!-- Vue organisateur -->
   <main id="organizer" hidden>
-    <section class="block">
-      <h2><span class="num">01</span> donneurs/</h2>
-      <p class="dim"># un adulte seul ou un couple ("Marie &amp; Jean")</p>
+    <section class="card">
+      <h2><span class="step">1</span> Qui offre&nbsp;?</h2>
+      <p class="hint">Un adulte seul ou un couple, par exemple «&nbsp;Marie &amp; Jean&nbsp;».</p>
       <form class="add" data-list="givers">
-        <label class="ps1" for="in-givers">&gt;</label>
-        <input id="in-givers" type="text" placeholder="nom du donneur" maxlength="60" required autocomplete="off">
-        <button type="submit" class="btn">ajouter</button>
+        <input type="text" placeholder="Nom" maxlength="60" required autocomplete="off" aria-label="Nom du donneur">
+        <button type="submit" class="btn">Ajouter</button>
       </form>
-      <ul id="givers" class="tree"></ul>
+      <ul id="givers" class="list"></ul>
     </section>
 
-    <section class="block">
-      <h2><span class="num">02</span> enfants/</h2>
-      <p class="dim"># ceux qui reçoivent un cadeau</p>
+    <section class="card">
+      <h2><span class="step">2</span> Qui reçoit&nbsp;?</h2>
+      <p class="hint">Les enfants qui auront un cadeau.</p>
       <form class="add" data-list="children">
-        <label class="ps1" for="in-children">&gt;</label>
-        <input id="in-children" type="text" placeholder="prénom de l'enfant" maxlength="60" required autocomplete="off">
-        <button type="submit" class="btn">ajouter</button>
+        <input type="text" placeholder="Prénom" maxlength="60" required autocomplete="off" aria-label="Prénom de l'enfant">
+        <button type="submit" class="btn">Ajouter</button>
       </form>
-      <ul id="children" class="tree"></ul>
+      <ul id="children" class="list"></ul>
     </section>
 
-    <section class="block">
-      <h2><span class="num">03</span> exclusions.conf</h2>
-      <p class="dim"># [x] = interdit pour ce donneur (ex. ses propres enfants)</p>
+    <section class="card">
+      <h2><span class="step">3</span> Qui ne peut pas tirer qui&nbsp;?</h2>
+      <p class="hint">Cliquez sur un enfant pour l'interdire à un donneur (ses propres enfants, par exemple).</p>
       <div id="exclusions"></div>
     </section>
 
-    <section class="block">
-      <h2><span class="num">04</span> tirage</h2>
-      <button id="draw" class="btn go">./tirage --go</button>
+    <section class="card">
+      <h2><span class="step">4</span> Le tirage</h2>
+      <button id="draw" class="btn big">Lancer le Tyrajosaure&nbsp;!</button>
       <pre id="log" class="log" role="status"></pre>
     </section>
 
-    <section id="results" class="block" hidden>
-      <h2><span class="num">05</span> liens secrets</h2>
-      <p class="dim"># envoie à chacun SON lien. personne (même pas toi) ne voit les autres résultats.</p>
+    <section id="results" class="card" hidden>
+      <h2><span class="step">5</span> Les liens à envoyer</h2>
+      <p class="hint">Envoyez à chacun <strong>son</strong> lien. Personne, pas même vous, ne voit les résultats des autres.</p>
       <ul id="links" class="links"></ul>
-      <p id="draw-info" class="dim"></p>
+      <p id="draw-info" class="hint small"></p>
     </section>
 
     <footer class="foot">
-      <button id="reset" class="btn danger">rm -rf *</button>
+      <button id="reset" class="btn ghost">Tout effacer</button>
     </footer>
   </main>
 
   <!-- Vue révélation -->
   <main id="reveal" hidden>
-    <section class="block">
+    <section class="card">
       <pre id="r-out" class="log big-log"></pre>
-      <button id="reveal-btn" class="btn go" hidden>appuie sur [entrée]</button>
+      <button id="reveal-btn" class="btn big" hidden>Découvrir&nbsp;!</button>
     </section>
   </main>
 
   <main id="broken" hidden>
-    <section class="block">
-<pre class="log"><span class="err">[err]</span> segmentation fault (core dumped)
-<span class="err">[err]</span> ce lien semble cassé, le tyrajosaure n'a rien trouvé.</pre>
-      <a class="btn" href="./">cd ~</a>
+    <section class="card">
+      <p>Oups, ce lien semble cassé&nbsp;: le Tyrajosaure n'a rien trouvé.</p>
+      <a class="btn" href="./">Retour à l'accueil</a>
     </section>
   </main>
 

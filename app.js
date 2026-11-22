@@ -112,7 +112,7 @@ function organizer() {
         el('li', {},
           el('span', { className: 'name', textContent: item.name }),
           el('button', {
-            className: 'btn del', type: 'button', textContent: 'rm',
+            className: 'del', type: 'button', textContent: '×',
             title: `Supprimer ${item.name}`,
             onclick: () => remove(key, item.id),
           }))));
@@ -121,8 +121,7 @@ function organizer() {
     // Exclusions
     const box = $('#exclusions');
     if (!state.givers.length || !state.children.length) {
-      box.replaceChildren(el('pre', { className: 'log', textContent: '(en attente de donneurs et d\'enfants)' }));
-      box.firstChild.classList.add('dim');
+      box.replaceChildren(el('p', { className: 'empty', textContent: 'Ajoutez d\'abord des donneurs et des enfants.' }));
     } else {
       box.replaceChildren(...state.givers.map((g) =>
         el('div', { className: 'excl-row' },
@@ -135,7 +134,7 @@ function organizer() {
               title: off ? 'Exclu : cliquer pour autoriser' : 'Autorisé : cliquer pour exclure',
               ariaPressed: String(off),
               onclick: () => toggle(g, c.id),
-            }, el('span', { className: 'box', textContent: off ? '[x] ' : '[ ] ' }), c.name);
+            }, el('span', { className: 'box', textContent: off ? '✗ ' : '✓ ' }), el('span', { className: 'name', textContent: c.name }));
           })))));
     }
     $('#draw').disabled = !state.givers.length || !state.children.length;
@@ -170,7 +169,7 @@ function organizer() {
       if (!name) return;
       const key = form.dataset.list;
       if (state[key].some((x) => x.name.toLowerCase() === name.toLowerCase())) {
-        say(['err', '[err] '], `"${name}" existe déjà`);
+        say(['err', '✗ '], `« ${name} » est déjà dans la liste`);
         return;
       }
       state[key].push(key === 'givers' ? { id: uid(), name, excl: [] } : { id: uid(), name });
@@ -190,26 +189,25 @@ function organizer() {
     running = true;
 
     await print(log, [
-      line(['ps1', '$ '], './tirage --go'),
-      line(['dim', '[..] '], `${givers.length} donneur(s), ${children.length} enfant(s), ${nbExcl} exclusion(s)`),
+      line(['dim', '… '], `${givers.length} donneur(s), ${children.length} enfant(s), ${nbExcl} exclusion(s)`),
     ]);
 
-    const fail = async (msg) => { await print(log, [line(['err', '[err] '], msg)]); running = false; };
+    const fail = async (msg) => { await print(log, [line(['err', '✗ '], msg)]); running = false; };
 
     if (givers.length > children.length) {
-      return fail(`${givers.length} donneurs pour ${children.length} enfant(s) : ajoute des enfants ou regroupe des donneurs`);
+      return fail(`${givers.length} donneurs pour ${children.length} enfant(s) : ajoutez des enfants ou regroupez des donneurs`);
     }
     const blocked = givers.find((g) => children.every((c) => g.excl.includes(c.id)));
     if (blocked) return fail(`${blocked.name} a exclu tous les enfants`);
 
     const result = draw(givers, children);
-    if (!result) return fail('aucune répartition possible avec ces exclusions, retires-en quelques-unes');
+    if (!result) return fail('aucune répartition possible avec ces exclusions, retirez-en quelques-unes');
 
     const extra = children.length - givers.length;
     await print(log, [
-      line(['dim', '[..] '], 'le tyrajosaure mélange les prénoms dans son chapeau'),
-      ...(extra > 0 ? [line(['warn', '[warn] '], `${extra} enfant(s) sans donneur`)] : []),
-      line(['ok', '[ok] '], `${givers.length} lien(s) secret(s) générés ↓`),
+      line(['dim', '… '], 'le Tyrajosaure mélange les prénoms dans son bonnet'),
+      ...(extra > 0 ? [line(['warn', '! '], `attention : ${extra} enfant(s) sans donneur`)] : []),
+      line(['ok', '✓ '], `c'est fait ! ${givers.length} lien(s) secret(s) à envoyer ci-dessous`),
     ]);
     showLinks(result);
     running = false;
@@ -223,24 +221,24 @@ function organizer() {
       : location.origin + location.pathname;
     const childName = (id) => state.children.find((c) => c.id === id).name;
 
-    $('#draw-info').textContent = `# tirage #${drawId} du ${new Date().toLocaleDateString('fr-FR')}. un nouveau tirage rend ces liens obsolètes.`;
+    $('#draw-info').textContent = `Tirage n° ${drawId} du ${new Date().toLocaleDateString('fr-FR')}. Relancer un tirage rend ces liens obsolètes.`;
     $('#links').replaceChildren(...state.givers.map((g) => {
       const url = `${base}#r=${encode({ g: g.name, c: childName(result[g.id]), id: drawId, d: date })}`;
-      const copy = el('button', { className: 'btn', type: 'button', textContent: 'copier' });
+      const copy = el('button', { className: 'btn small', type: 'button', textContent: 'Copier' });
       copy.onclick = async () => {
         try {
           await navigator.clipboard.writeText(url);
-          copy.textContent = 'copié ✓';
+          copy.textContent = 'Copié ✓';
         } catch (_) {
           window.prompt('Copie ce lien :', url);
         }
-        setTimeout(() => { copy.textContent = 'copier'; }, 1800);
+        setTimeout(() => { copy.textContent = 'Copier'; }, 1800);
       };
       const actions = el('span', { className: 'actions' }, copy);
       if (navigator.share) {
         actions.append(el('button', {
-          className: 'btn', type: 'button', textContent: 'partager',
-          onclick: () => navigator.share({ title: 'tyrajosaure', text: `${g.name}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
+          className: 'btn small', type: 'button', textContent: 'Partager',
+          onclick: () => navigator.share({ title: 'Tyrajosaure 🦖', text: `${g.name}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
         }));
       }
       return el('li', {},
@@ -274,15 +272,16 @@ async function reveal(payload) {
     $('#broken').hidden = false;
     return;
   }
-  document.title = `tyrajosaure — ${data.g}`;
+  document.title = `Tyrajosaure — ${data.g}`;
   $('#reveal').hidden = false;
 
   const out = $('#r-out');
   const when = data.d ? ` du ${new Date(data.d).toLocaleDateString('fr-FR')}` : '';
   await print(out, [
-    line(['ps1', '$ '], `./tyrajosaure --pour "${data.g}"`),
-    line(['ok', '[ok] '], `lien valide${data.id ? ` · tirage #${data.id}${when}` : ''}`),
-    line(['dim', '[..] '], 'le tyrajosaure renifle la forêt de sapins...'),
+    line('Bonjour ', ['hl', data.g], ' !'),
+    line(['dim', `tirage${data.id ? ` n° ${data.id}` : ''}${when}`]),
+    line(''),
+    line(['dim', '… '], 'le Tyrajosaure renifle la forêt de sapins'),
   ], 350);
 
   const btn = $('#reveal-btn');
@@ -294,7 +293,7 @@ async function reveal(payload) {
 
     // Barre de progression ASCII
     const bar = el('span');
-    out.append(line(['dim', '[..] '], bar));
+    out.append(line(['dim', '… '], bar));
     const W = 20;
     for (let i = 0; i <= W; i++) {
       bar.textContent = `[${'#'.repeat(i)}${'.'.repeat(W - i)}] ${Math.round((i / W) * 100)}%`;
@@ -306,13 +305,13 @@ async function reveal(payload) {
     const width = [...label].length;
     const edge = `+${'-'.repeat(width)}+`;
     await print(out, [
-      line(['ok', '[ok] '], 'cible verrouillée. tu offres un cadeau à :'),
+      line(['ok', '✓ '], 'trouvé ! vous offrez un cadeau à :'),
       line(''),
       line(['hl', `  ${edge}`]),
       line(['hl', `  |${label}|`]),
       line(['hl', `  ${edge}`]),
       line(''),
-      line(['dim', '  RAWR! joyeux noël 🎄']),
+      line(['dim', '  RAWR ! Joyeux Noël 🎄']),
     ], 250);
   }, { once: true });
 }
