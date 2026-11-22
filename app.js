@@ -91,9 +91,12 @@ function draw(givers, children) {
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (s && Array.isArray(s.givers) && Array.isArray(s.children)) return s;
+    if (s && Array.isArray(s.givers) && Array.isArray(s.children)) {
+      if (!Array.isArray(s.draws)) s.draws = [];
+      return s;
+    }
   } catch (_) { /* ignore */ }
-  return { givers: [], children: [] };
+  return { givers: [], children: [], draws: [] };
 }
 
 function organizer() {
@@ -153,12 +156,12 @@ function organizer() {
     invalidate();
   }
 
-  // Toute modification rend le dernier tirage obsolète
+  // Après toute modification des listes : on sauvegarde et on réaffiche
   function invalidate() {
-    $('#results').hidden = true;
     log.replaceChildren();
     save();
     render();
+    renderDraws();
   }
 
   document.querySelectorAll('form.add').forEach((form) => {
@@ -182,9 +185,12 @@ function organizer() {
   let running = false;
   $('#draw').addEventListener('click', async () => {
     if (running) return;
+    if (state.draws.length && !window.confirm(
+      'Un tirage a déjà été fait. En relancer un changera les résultats pour tout le monde '
+      + '(l\'ancien restera consultable dans l\'historique). Continuer ?',
+    )) return;
     const { givers, children } = state;
     const nbExcl = givers.reduce((n, g) => n + g.excl.length, 0);
-    $('#results').hidden = true;
     log.replaceChildren();
     running = true;
 
@@ -209,28 +215,46 @@ function organizer() {
       ...(extra > 0 ? [line(['warn', '! '], `attention : ${extra} enfant(s) sans donneur`)] : []),
       line(['ok', '✓ '], `c'est fait ! ${givers.length} lien(s) secret(s) à envoyer ci-dessous`),
     ]);
-    showLinks(result);
+    saveDraw(result);
     running = false;
   });
 
-  function showLinks(result) {
-    const drawId = uid().slice(0, 5).toUpperCase();
-    const date = new Date().toISOString().slice(0, 10);
-    const base = location.protocol === 'file:'
-      ? location.href.split('#')[0]
-      : location.origin + location.pathname;
-    const childName = (id) => state.children.find((c) => c.id === id).name;
+  // Empreinte des listes, pour savoir si elles ont changé depuis un tirage
+  const signature = () => JSON.stringify([state.givers, state.children]);
 
-    $('#draw-info').textContent = `Tirage n° ${drawId} du ${new Date().toLocaleDateString('fr-FR')}. Relancer un tirage rend ces liens obsolètes.`;
-    $('#links').replaceChildren(...state.givers.map((g) => {
-      const url = `${base}#r=${encode({ g: g.name, c: childName(result[g.id]), id: drawId, d: date })}`;
+  function saveDraw(result) {
+    const childName = (id) => state.children.find((c) => c.id === id).name;
+    state.draws.unshift({
+      id: uid().slice(0, 5).toUpperCase(),
+      date: new Date().toISOString(),
+      pairs: state.givers.map((g) => ({ g: g.name, c: childName(result[g.id]) })),
+      sig: signature(),
+    });
+    save();
+    renderDraws();
+    $('#results').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  const base = location.protocol === 'file:'
+    ? location.href.split('#')[0]
+    : location.origin + location.pathname;
+
+  const when = (iso) => {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  // Liste des liens secrets d'un tirage
+  function linkList(draw) {
+    return el('ul', { className: 'links' }, ...draw.pairs.map(({ g, c }) => {
+      const url = `${base}#r=${encode({ g, c, id: draw.id, d: draw.date.slice(0, 10) })}`;
       const copy = el('button', { className: 'btn small', type: 'button', textContent: 'Copier' });
       copy.onclick = async () => {
         try {
           await navigator.clipboard.writeText(url);
           copy.textContent = 'Copié ✓';
         } catch (_) {
-          window.prompt('Copie ce lien :', url);
+          window.prompt('Copiez ce lien :', url);
         }
         setTimeout(() => { copy.textContent = 'Copier'; }, 1800);
       };
@@ -238,26 +262,55 @@ function organizer() {
       if (navigator.share) {
         actions.append(el('button', {
           className: 'btn small', type: 'button', textContent: 'Partager',
-          onclick: () => navigator.share({ title: 'Tyrajosaure 🦖', text: `${g.name}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
+          onclick: () => navigator.share({ title: 'Tyrajosaure 🦖', text: `${g}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
         }));
       }
       return el('li', {},
-        el('span', { className: 'name', textContent: g.name }),
+        el('span', { className: 'name', textContent: g }),
         el('span', { className: 'dots', ariaHidden: 'true' }),
         actions);
     }));
-    $('#results').hidden = false;
-    $('#results').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function renderDraws() {
+    const [last, ...older] = state.draws;
+    $('#results').hidden = !last;
+    if (!last) return;
+
+    $('#links').replaceChildren(linkList(last));
+    $('#draw-info').textContent = `Tirage n° ${last.id} du ${when(last.date)}.`;
+    $('#draw-stale').hidden = last.sig === signature();
+
+    const history = $('#history');
+    history.hidden = !older.length;
+    $('#history-count').textContent = older.length;
+    $('#history-list').replaceChildren(...older.map((d) =>
+      el('div', { className: 'old-draw' },
+        el('div', { className: 'old-head' },
+          el('strong', { textContent: `Tirage n° ${d.id}` }),
+          el('span', { className: 'hint', textContent: `du ${when(d.date)}` }),
+          el('button', {
+            className: 'del', type: 'button', textContent: '×',
+            title: 'Supprimer ce tirage de l\'historique',
+            onclick: () => {
+              if (!window.confirm(`Supprimer définitivement le tirage n° ${d.id} ?`)) return;
+              state.draws = state.draws.filter((x) => x !== d);
+              save();
+              renderDraws();
+            },
+          })),
+        linkList(d))));
   }
 
   $('#reset').addEventListener('click', () => {
-    if (!window.confirm('Effacer tous les donneurs, enfants et exclusions ?')) return;
+    if (!window.confirm('Effacer tous les donneurs, enfants et exclusions ? (les tirages déjà faits restent consultables)')) return;
     state.givers = [];
     state.children = [];
     invalidate();
   });
 
   render();
+  renderDraws();
   $('#organizer').hidden = false;
 }
 

@@ -9,7 +9,7 @@ Le tirage au sort qui a du mordant ! Petit site pour tirer au sort **quel adulte
 3. Lancez le tirage : chaque donneur reçoit un enfant différent.
 4. Envoyez à chacun **son lien secret** : en l'ouvrant, il découvre uniquement l'enfant qui lui est attribué. Personne, pas même l'organisateur, ne voit les résultats des autres.
 
-La saisie est conservée dans le navigateur (`localStorage`).
+La saisie **et tous les tirages** sont conservés dans le navigateur de l'organisateur (`localStorage`) : le dernier tirage s'affiche à chaque ouverture et les précédents restent dans un historique. Si quelqu'un oublie à qui il doit offrir, il suffit de lui renvoyer son lien, sans refaire de tirage. Attention : ces données sont propres à ce navigateur et à cet appareil.
 
 > ℹ️ Le résultat est encodé dans le lien (base64) : c'est une obfuscation, pas du chiffrement. Largement suffisant entre gens de confiance.
 

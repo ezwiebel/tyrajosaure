@@ -75,9 +75,14 @@
 
     <section id="results" class="card" hidden>
       <h2><span class="step">5</span> Les liens à envoyer</h2>
-      <p class="hint">Envoyez à chacun <strong>son</strong> lien. Personne, pas même vous, ne voit les résultats des autres.</p>
-      <ul id="links" class="links"></ul>
+      <p class="hint">Envoyez à chacun <strong>son</strong> lien. Personne, pas même vous, ne voit les résultats des autres. Les tirages sont conservés sur cet appareil&nbsp;: vous pourrez toujours renvoyer un lien oublié.</p>
+      <p id="draw-stale" class="stale" hidden>! Les listes ont changé depuis ce tirage. Relancez-en un si nécessaire.</p>
+      <div id="links"></div>
       <p id="draw-info" class="hint small"></p>
+      <details id="history" hidden>
+        <summary>Tirages précédents (<span id="history-count"></span>)</summary>
+        <div id="history-list"></div>
+      </details>
     </section>
 
     <footer class="foot">
