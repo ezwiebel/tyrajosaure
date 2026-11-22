@@ -10,6 +10,8 @@ Aucune dépendance : uniquement la bibliothèque standard de Python.
 
 import json
 import os
+import signal
+import sys
 import threading
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -93,5 +95,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    # En PID 1 dans Docker, SIGTERM est ignoré par défaut : on l'intercepte pour s'arrêter proprement
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     print(f'Tyrajosaure sur le port {PORT} (données : {DATA_FILE})', flush=True)
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
