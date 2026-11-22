@@ -4,9 +4,10 @@ services:
     container_name: tyrajosaure
     restart: unless-stopped
     environment:
-      VIRTUAL_HOST: tyrajosaure.example.com
+      # Domaine du site (surchargeable via DOMAIN dans un fichier .env)
+      VIRTUAL_HOST: ${DOMAIN:-tyrajosaure.example.com}
       VIRTUAL_PORT: "8000"
-      LETSENCRYPT_HOST: tyrajosaure.example.com
+      LETSENCRYPT_HOST: ${DOMAIN:-tyrajosaure.example.com}
     volumes:
       - tyrajosaure-data:/data
     networks:

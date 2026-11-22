@@ -1,0 +1,14 @@
+# Surcharge pour tester en local, sans nginx-proxy :
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+# -> http://localhost:8000
+services:
+  tyrajosaure:
+    container_name: tyrajosaure-local
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-8000}:8000"
+
+networks:
+  proxy:
+    # Réseau créé automatiquement au lieu du réseau externe du proxy
+    external: false
+    name: tyrajosaure-local
