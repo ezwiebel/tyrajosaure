@@ -5,12 +5,30 @@
 const $ = (sel) => document.querySelector(sel);
 const STORAGE_KEY = 'tyrajosaure:v1';
 const uid = () => Math.random().toString(36).slice(2, 10);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const el = (tag, props = {}, ...children) => {
   const node = Object.assign(document.createElement(tag), props);
   node.append(...children);
   return node;
 };
+
+// Une ligne de journal : morceaux de texte brut ou [classe, texte]
+const line = (...parts) => {
+  const frag = document.createDocumentFragment();
+  for (const p of parts) frag.append(Array.isArray(p) ? el('span', { className: p[0], textContent: p[1] }) : p);
+  frag.append('\n');
+  return frag;
+};
+
+// Affiche des lignes une à une, façon terminal
+async function print(pre, lines, delay = 220) {
+  for (const l of lines) {
+    pre.append(l);
+    if (!REDUCED) await sleep(delay);
+  }
+}
 
 // Encodage base64url compatible Unicode (accents, emojis…)
 const encode = (obj) => {
@@ -84,18 +102,18 @@ function organizer() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* ignore */ }
   };
 
-  const message = $('#message');
-  const say = (text, kind = '') => { message.textContent = text; message.className = `message ${kind}`; };
+  const log = $('#log');
+  const say = (...parts) => log.replaceChildren(line(...parts));
 
   function render() {
     // Listes
     for (const key of ['givers', 'children']) {
-      const ul = $(`#${key}`);
-      ul.replaceChildren(...state[key].map((item) =>
+      $(`#${key}`).replaceChildren(...state[key].map((item) =>
         el('li', {},
-          item.name,
+          el('span', { className: 'name', textContent: item.name }),
           el('button', {
-            className: 'del', type: 'button', textContent: '×', title: 'Supprimer',
+            className: 'btn del', type: 'button', textContent: 'rm',
+            title: `Supprimer ${item.name}`,
             onclick: () => remove(key, item.id),
           }))));
     }
@@ -103,7 +121,8 @@ function organizer() {
     // Exclusions
     const box = $('#exclusions');
     if (!state.givers.length || !state.children.length) {
-      box.replaceChildren(el('p', { className: 'empty', textContent: 'Ajoutez des donneurs et des enfants d\'abord.' }));
+      box.replaceChildren(el('pre', { className: 'log', textContent: '(en attente de donneurs et d\'enfants)' }));
+      box.firstChild.classList.add('dim');
     } else {
       box.replaceChildren(...state.givers.map((g) =>
         el('div', { className: 'excl-row' },
@@ -113,10 +132,10 @@ function organizer() {
             return el('button', {
               type: 'button',
               className: `chip${off ? ' off' : ''}`,
-              textContent: c.name,
-              title: off ? 'Exclu — toucher pour autoriser' : 'Autorisé — toucher pour exclure',
+              title: off ? 'Exclu : cliquer pour autoriser' : 'Autorisé : cliquer pour exclure',
+              ariaPressed: String(off),
               onclick: () => toggle(g, c.id),
-            });
+            }, el('span', { className: 'box', textContent: off ? '[x] ' : '[ ] ' }), c.name);
           })))));
     }
     $('#draw').disabled = !state.givers.length || !state.children.length;
@@ -138,7 +157,7 @@ function organizer() {
   // Toute modification rend le dernier tirage obsolète
   function invalidate() {
     $('#results').hidden = true;
-    say('');
+    log.replaceChildren();
     save();
     render();
   }
@@ -151,7 +170,7 @@ function organizer() {
       if (!name) return;
       const key = form.dataset.list;
       if (state[key].some((x) => x.name.toLowerCase() === name.toLowerCase())) {
-        say(`« ${name} » est déjà dans la liste.`, 'error');
+        say(['err', '[err] '], `"${name}" existe déjà`);
         return;
       }
       state[key].push(key === 'givers' ? { id: uid(), name, excl: [] } : { id: uid(), name });
@@ -161,62 +180,76 @@ function organizer() {
     });
   });
 
-  $('#draw').addEventListener('click', () => {
+  let running = false;
+  $('#draw').addEventListener('click', async () => {
+    if (running) return;
     const { givers, children } = state;
+    const nbExcl = givers.reduce((n, g) => n + g.excl.length, 0);
+    $('#results').hidden = true;
+    log.replaceChildren();
+    running = true;
+
+    await print(log, [
+      line(['ps1', '$ '], './tirage --go'),
+      line(['dim', '[..] '], `${givers.length} donneur(s), ${children.length} enfant(s), ${nbExcl} exclusion(s)`),
+    ]);
+
+    const fail = async (msg) => { await print(log, [line(['err', '[err] '], msg)]); running = false; };
+
     if (givers.length > children.length) {
-      say(`Il y a ${givers.length} donneurs pour seulement ${children.length} enfant(s) : ajoutez des enfants ou regroupez des donneurs.`, 'error');
-      return;
+      return fail(`${givers.length} donneurs pour ${children.length} enfant(s) : ajoute des enfants ou regroupe des donneurs`);
     }
     const blocked = givers.find((g) => children.every((c) => g.excl.includes(c.id)));
-    if (blocked) {
-      say(`${blocked.name} a exclu tous les enfants !`, 'error');
-      return;
-    }
+    if (blocked) return fail(`${blocked.name} a exclu tous les enfants`);
+
     const result = draw(givers, children);
-    if (!result) {
-      say('Impossible de trouver une répartition avec ces exclusions. Retirez-en quelques-unes.', 'error');
-      return;
-    }
+    if (!result) return fail('aucune répartition possible avec ces exclusions, retires-en quelques-unes');
 
     const extra = children.length - givers.length;
-    if (extra > 0) say(`Tirage effectué ! Attention : ${extra} enfant(s) n'auront pas de donneur.`, 'warn');
-    else say('Tirage effectué ! 🦖 Le Tyrajosaure a parlé.', 'ok');
-
+    await print(log, [
+      line(['dim', '[..] '], 'le tyrajosaure mélange les prénoms dans son chapeau'),
+      ...(extra > 0 ? [line(['warn', '[warn] '], `${extra} enfant(s) sans donneur`)] : []),
+      line(['ok', '[ok] '], `${givers.length} lien(s) secret(s) générés ↓`),
+    ]);
     showLinks(result);
+    running = false;
   });
 
   function showLinks(result) {
     const drawId = uid().slice(0, 5).toUpperCase();
     const date = new Date().toISOString().slice(0, 10);
-    const base = location.origin === 'null' || location.protocol === 'file:'
+    const base = location.protocol === 'file:'
       ? location.href.split('#')[0]
       : location.origin + location.pathname;
     const childName = (id) => state.children.find((c) => c.id === id).name;
 
-    $('#draw-info').textContent = `Tirage n° ${drawId} du ${new Date().toLocaleDateString('fr-FR')}. Un nouveau tirage rend ces liens obsolètes.`;
+    $('#draw-info').textContent = `# tirage #${drawId} du ${new Date().toLocaleDateString('fr-FR')}. un nouveau tirage rend ces liens obsolètes.`;
     $('#links').replaceChildren(...state.givers.map((g) => {
       const url = `${base}#r=${encode({ g: g.name, c: childName(result[g.id]), id: drawId, d: date })}`;
-      const copy = el('button', { className: 'btn small', type: 'button', textContent: '📋 Copier' });
+      const copy = el('button', { className: 'btn', type: 'button', textContent: 'copier' });
       copy.onclick = async () => {
         try {
           await navigator.clipboard.writeText(url);
-          copy.textContent = '✅ Copié';
+          copy.textContent = 'copié ✓';
         } catch (_) {
-          window.prompt('Copiez ce lien :', url);
+          window.prompt('Copie ce lien :', url);
         }
-        setTimeout(() => { copy.textContent = '📋 Copier'; }, 1800);
+        setTimeout(() => { copy.textContent = 'copier'; }, 1800);
       };
-      const actions = el('div', { className: 'actions' }, copy);
+      const actions = el('span', { className: 'actions' }, copy);
       if (navigator.share) {
         actions.append(el('button', {
-          className: 'btn small', type: 'button', textContent: '📤 Partager',
-          onclick: () => navigator.share({ title: 'Tyrajosaure 🦖', text: `${g.name}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
+          className: 'btn', type: 'button', textContent: 'partager',
+          onclick: () => navigator.share({ title: 'tyrajosaure', text: `${g.name}, découvre à qui tu fais un cadeau :`, url }).catch(() => {}),
         }));
       }
-      return el('li', {}, el('strong', { textContent: g.name }), actions);
+      return el('li', {},
+        el('span', { className: 'name', textContent: g.name }),
+        el('span', { className: 'dots', ariaHidden: 'true' }),
+        actions);
     }));
     $('#results').hidden = false;
-    $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('#results').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
   }
 
   $('#reset').addEventListener('click', () => {
@@ -232,7 +265,7 @@ function organizer() {
 
 /* ---------- Vue révélation ---------- */
 
-function reveal(payload) {
+async function reveal(payload) {
   let data;
   try {
     data = decode(payload);
@@ -241,21 +274,47 @@ function reveal(payload) {
     $('#broken').hidden = false;
     return;
   }
-  $('#r-giver').textContent = data.g;
-  $('#r-child').textContent = data.c;
-  if (data.id) $('#r-info').textContent = `Tirage n° ${data.id}${data.d ? ` du ${new Date(data.d).toLocaleDateString('fr-FR')}` : ''}`;
-  document.title = `Tyrajosaure — ${data.g}`;
-
-  $('#reveal-btn').addEventListener('click', () => {
-    const egg = $('#egg');
-    egg.classList.add('shake');
-    setTimeout(() => {
-      $('#reveal-btn').hidden = true;
-      $('#r-child-box').hidden = false;
-    }, 1500);
-  }, { once: true });
-
+  document.title = `tyrajosaure — ${data.g}`;
   $('#reveal').hidden = false;
+
+  const out = $('#r-out');
+  const when = data.d ? ` du ${new Date(data.d).toLocaleDateString('fr-FR')}` : '';
+  await print(out, [
+    line(['ps1', '$ '], `./tyrajosaure --pour "${data.g}"`),
+    line(['ok', '[ok] '], `lien valide${data.id ? ` · tirage #${data.id}${when}` : ''}`),
+    line(['dim', '[..] '], 'le tyrajosaure renifle la forêt de sapins...'),
+  ], 350);
+
+  const btn = $('#reveal-btn');
+  btn.hidden = false;
+  btn.focus();
+
+  btn.addEventListener('click', async () => {
+    btn.hidden = true;
+
+    // Barre de progression ASCII
+    const bar = el('span');
+    out.append(line(['dim', '[..] '], bar));
+    const W = 20;
+    for (let i = 0; i <= W; i++) {
+      bar.textContent = `[${'#'.repeat(i)}${'.'.repeat(W - i)}] ${Math.round((i / W) * 100)}%`;
+      if (!REDUCED) await sleep(60 + Math.random() * 90);
+    }
+
+    // Boîte autour du prénom
+    const label = `  >> ${data.c} <<  `;
+    const width = [...label].length;
+    const edge = `+${'-'.repeat(width)}+`;
+    await print(out, [
+      line(['ok', '[ok] '], 'cible verrouillée. tu offres un cadeau à :'),
+      line(''),
+      line(['hl', `  ${edge}`]),
+      line(['hl', `  |${label}|`]),
+      line(['hl', `  ${edge}`]),
+      line(''),
+      line(['dim', '  RAWR! joyeux noël 🎄']),
+    ], 250);
+  }, { once: true });
 }
 
 /* ---------- Routage ---------- */
