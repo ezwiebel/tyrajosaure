@@ -2,3 +2,5 @@
 *.swp
 .vscode/
 .idea/
+data/
+__pycache__/

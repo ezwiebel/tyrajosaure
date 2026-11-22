@@ -189,3 +189,6 @@ pre { margin: 0; font-family: var(--mono); }
 .big-log { font-size: 1rem; margin-top: 0; }
 
 .foot { margin-top: 28px; text-align: center; }
+.sync { margin: 14px 0 0; font-size: .85rem; color: var(--night-dim); }
+.sync.ok { color: var(--dino); }
+.sync.warn { color: #f2c14e; }

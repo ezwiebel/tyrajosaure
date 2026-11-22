@@ -1,0 +1,22 @@
+services:
+  tyrajosaure:
+    build: .
+    container_name: tyrajosaure
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: tyrajosaure.example.com
+      VIRTUAL_PORT: "8000"
+      LETSENCRYPT_HOST: tyrajosaure.example.com
+    volumes:
+      - tyrajosaure-data:/data
+    networks:
+      - proxy
+
+volumes:
+  tyrajosaure-data:
+
+networks:
+  proxy:
+    external: true
+    # Nom du réseau Docker partagé avec nginx-proxy (surchargeable via .env)
+    name: ${PROXY_NETWORK:-nginx-proxy}

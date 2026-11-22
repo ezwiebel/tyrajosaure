@@ -101,8 +101,77 @@ function loadState() {
 
 function organizer() {
   const state = loadState();
-  const save = () => {
+  const saveLocal = () => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* ignore */ }
+  };
+
+  /* --- Synchronisation avec le serveur (si présent) --- */
+  const sync = { enabled: false, rev: 0, busy: false, dirty: false };
+  const syncLine = $('#sync');
+  const syncSay = (text, kind = '') => { syncLine.textContent = text; syncLine.className = `sync ${kind}`; };
+  const hasContent = (s) => s.givers.length || s.children.length || s.draws.length;
+
+  // Remplace l'état courant par celui du serveur
+  function adopt(data) {
+    state.givers = Array.isArray(data.givers) ? data.givers : [];
+    state.children = Array.isArray(data.children) ? data.children : [];
+    state.draws = Array.isArray(data.draws) ? data.draws : [];
+    saveLocal();
+    render();
+    renderDraws();
+  }
+
+  async function push() {
+    if (sync.busy) { sync.dirty = true; return; }
+    sync.busy = true;
+    sync.dirty = false;
+    try {
+      const res = await fetch('api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rev: sync.rev, data: state }),
+      });
+      const body = await res.json();
+      if (res.status === 409) {
+        sync.rev = body.rev;
+        adopt(body.data || {});
+        sync.dirty = false;
+        syncSay('! Quelqu\'un a modifié les données depuis un autre appareil : la page a été mise à jour. Refaites votre dernière modification si besoin.', 'warn');
+      } else if (res.ok) {
+        sync.rev = body.rev;
+        syncSay('✓ Enregistré sur le serveur', 'ok');
+      } else {
+        throw new Error(body.error || res.status);
+      }
+    } catch (_) {
+      syncSay('! Serveur injoignable : enregistré sur cet appareil uniquement', 'warn');
+    }
+    sync.busy = false;
+    if (sync.dirty) push();
+  }
+
+  async function connect() {
+    if (!location.protocol.startsWith('http')) return;
+    try {
+      const res = await fetch('api/state', { cache: 'no-store' });
+      if (!res.ok) return;
+      const remote = await res.json();
+      sync.enabled = true;
+      sync.rev = remote.rev;
+      if (remote.data) {
+        adopt(remote.data);
+        syncSay('✓ Données chargées depuis le serveur', 'ok');
+      } else if (hasContent(state)) {
+        push(); // première fois : on envoie ce qui était sur cet appareil
+      } else {
+        syncSay('✓ Connecté au serveur', 'ok');
+      }
+    } catch (_) { /* pas de serveur : mode local */ }
+  }
+
+  const save = () => {
+    saveLocal();
+    if (sync.enabled) push();
   };
 
   const log = $('#log');
@@ -312,6 +381,7 @@ function organizer() {
   render();
   renderDraws();
   $('#organizer').hidden = false;
+  connect();
 }
 
 /* ---------- Vue révélation ---------- */
