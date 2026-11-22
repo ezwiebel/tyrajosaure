@@ -29,7 +29,7 @@ Les listes **et tous les tirages** sont enregistrés sur le serveur, avec une co
 | `Dockerfile` | Image `python:3.13-alpine` (~70 Mo), utilisateur non-root, healthcheck. |
 | `docker-compose.yml` | Déploiement derrière **nginx-proxy + acme-companion** (réseau externe, pas de port publié). |
 | `docker-compose.local.yml` | Surcharge pour tester en local **sans proxy** (publie le port sur `127.0.0.1`). |
-| `.env.example` | Variables optionnelles (`DOMAIN`, `PROXY_NETWORK`, `LOCAL_PORT`) à copier dans `.env`. |
+| `.env.example` | Variables (`DOMAIN`, `PROXY_NETWORK`, `LOCAL_PORT`) à copier dans `.env`. `DOMAIN` est indispensable en production. |
 
 Le site a deux modes, choisis automatiquement au chargement :
 
@@ -115,9 +115,11 @@ Puis dans le navigateur, sur `http://localhost:8000` :
 ```sh
 git clone https://github.com/ezwiebel/tyrajosaure.git
 cd tyrajosaure
-cp .env.example .env     # puis adapter DOMAIN et PROXY_NETWORK
+cp .env.example .env     # puis adapter DOMAIN (obligatoire) et PROXY_NETWORK
 docker compose up -d --build
 ```
+
+> ⚠️ Sans `DOMAIN` dans `.env`, le compose utilise le domaine d'exemple `tyrajosaure.example.com` : le site ne sera pas joignable et aucun certificat ne sera obtenu. Vérifiez avec `docker compose config | grep VIRTUAL_HOST`.
 
 Le conteneur `tyrajosaure` rejoint le réseau du proxy et déclare `VIRTUAL_HOST`, `VIRTUAL_PORT=8000` et `LETSENCRYPT_HOST`. nginx-proxy route alors le domaine vers lui, et acme-companion obtient le certificat (cela peut prendre une minute). Aucun port n'est publié sur l'hôte.
 
